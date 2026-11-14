@@ -7,6 +7,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 // VULNERABILIDAD: devuelve el stack trace completo y la clase de la excepcion al cliente
 @RestControllerAdvice
@@ -23,5 +26,11 @@ public class ManejadorGlobalDeErrores {
         respuesta.put("stackTrace", buffer.toString());
         respuesta.put("causa", excepcion.getCause() != null ? excepcion.getCause().toString() : null);
         return respuesta;
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> accesoDenegado(AccessDeniedException excepcion) {
+        return Map.of("error", "Acceso denegado");
     }
 }

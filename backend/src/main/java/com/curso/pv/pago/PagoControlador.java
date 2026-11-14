@@ -1,5 +1,6 @@
 package com.curso.pv.pago;
 
+import com.curso.pv.venta.VentaServicio;   // FIX
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,17 +16,22 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/pagos")
-// VULNERABILIDAD (BAC): sin control de acceso, cualquiera consulta o ejecuta pagos
+// RBAC: las rutas GET /api/pagos, /tarjeta y /configuracion exigen ROL_ADMIN (ver SecurityConfig).
+// BOLA: procesar y porVenta verifican que la venta sea del usuario en sesion (o que sea admin).
 public class PagoControlador {
 
     private final PagoServicio servicio;
+    private final VentaServicio ventaServicio;   // FIX
 
-    public PagoControlador(PagoServicio servicio) {
+    public PagoControlador(PagoServicio servicio, VentaServicio ventaServicio) {   // FIX
         this.servicio = servicio;
+        this.ventaServicio = ventaServicio;
     }
 
     @PostMapping("/procesar")
     public Map<String, Object> procesar(@RequestBody Map<String, Object> datos) {
+        // FIX (BOLA): solo se puede cobrar una venta propia (el admin puede cobrar cualquiera)
+        ventaServicio.verificarAcceso(Long.valueOf(String.valueOf(datos.get("ventaId"))));
         return servicio.procesar(datos);
     }
 
@@ -37,6 +43,7 @@ public class PagoControlador {
 
     @GetMapping("/venta/{ventaId}")
     public List<Pago> porVenta(@PathVariable Long ventaId) {
+        ventaServicio.verificarAcceso(ventaId);   // FIX (BOLA)
         return servicio.porVenta(ventaId);
     }
 
