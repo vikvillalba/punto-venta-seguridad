@@ -7,4 +7,7 @@ import java.util.List;
 public interface VentaRepositorio extends JpaRepository<Venta, Long> {
 
     List<Venta> findByClienteId(Long clienteId);
+    
+    // FIX (BOLA): ventas de un vendedor concreto
+    List<Venta> findByUsuarioId(Long usuarioId);
 }

@@ -1,6 +1,7 @@
 package com.curso.pv.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,8 +69,10 @@ public class AuthControlador {
         return ResponseEntity.ok(cuerpo);
     }
 
+    // FIX (mass assignment): el cuerpo se mapea a un DTO sin campo "rol" y se valida con @Valid.
+    // Si la validacion falla, ManejadorGlobalDeErrores responde 400.
     @PostMapping("/registro")
-    public ResponseEntity<?> registro(@RequestBody Map<String, String> datos, HttpServletRequest request) {
+    public ResponseEntity<?> registro(@Valid @RequestBody RegistroDTO datos, HttpServletRequest request) {
         return ResponseEntity.ok(servicio.registrar(datos, request));
     }
 

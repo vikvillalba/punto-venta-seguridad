@@ -26,19 +26,16 @@ public class AuthServicio {
         this.auditoria = auditoria;
     }
 
-    // VULNERABILIDAD: cualquiera puede registrarse y elegir su propio rol, incluso ADMIN
+    /** FIX: el rol de un auto-registro lo decide el servidor, nunca el cliente. */
+    static final String ROL_POR_DEFECTO = "VENDEDOR";
+
+    // FIX (escalada de privilegios): recibe un RegistroDTO ya validado, que no tiene campo "rol"
     @Transactional
-    public Map<String, Object> registrar(Map<String, String> datos, HttpServletRequest request) {
+    public Map<String, Object> registrar(RegistroDTO datos, HttpServletRequest request) {
         Map<String, Object> respuesta = new HashMap<>();
 
-        String username = datos.get("username");
-        String password = datos.get("password");
-        String rol = datos.getOrDefault("rol", "VENDEDOR");
-
-        if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            respuesta.put("error", "Faltan datos de registro");
-            return respuesta;
-        }
+        String username = datos.username().trim();
+        String password = datos.password();
 
         // VULNERABILIDAD (SQLi): comprobacion de duplicados concatenando el valor
         Usuario existente = consultas.porUsername(username);
@@ -51,16 +48,17 @@ public class AuthServicio {
         usuario.setUsername(username);
         // VULNERABILIDAD: password en texto plano
         usuario.setPassword(password);
-        usuario.setNombre(datos.getOrDefault("nombre", username));
-        usuario.setEmail(datos.get("email"));
-        // VULNERABILIDAD (escalada de privilegios): el rol lo decide el cliente
-        usuario.setRol(rol);
+        usuario.setNombre(datos.nombre() != null && !datos.nombre().isBlank() ? datos.nombre().trim() : username);
+        usuario.setEmail(datos.email() != null && !datos.email().isBlank() ? datos.email().trim() : null);
+        // FIX (escalada de privilegios): el rol siempre lo fija el servidor
+        usuario.setRol(ROL_POR_DEFECTO);
         usuario.setActivo(true);
 
         Usuario guardado = usuarios.save(usuario);
 
         auditoria.registrar(guardado.getId(), guardado.getUsername(), "REGISTRO", "USUARIO",
-                guardado.getId(), datos, request);
+                guardado.getId(),
+                Map.of("username", guardado.getUsername(), "rol", guardado.getRol()), request);
 
         respuesta.put("mensaje", "Usuario registrado");
         respuesta.put("usuario", guardado);

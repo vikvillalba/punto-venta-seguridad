@@ -6,6 +6,7 @@ import com.curso.pv.producto.ProductoRepositorio;
 import com.curso.pv.security.UsuarioActual;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.security.access.AccessDeniedException;   // FIX
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -24,7 +25,7 @@ public class VentaServicio {
 
     private static final BigDecimal IMPUESTO = new BigDecimal("0.19");
 
-private final VentaRepositorio ventas;
+    private final VentaRepositorio ventas;
     private final VentaConsultasInseguras consultasVenta;
     private final VentaItemRepositorio items;
     private final ProductoRepositorio productos;
@@ -152,7 +153,7 @@ private final VentaRepositorio ventas;
         Venta venta = new Venta();
         venta.setFolio(generarFolio());
 
-        // VULNERABILIDAD (BAC): el clienteId y el usuarioId los elige el atacante
+        // El clienteId lo elige el vendedor (a quien le vende)...
         Object clienteId = datos.get("clienteId");
         if (clienteId != null) {
             try {
@@ -160,16 +161,8 @@ private final VentaRepositorio ventas;
             } catch (NumberFormatException ignored) {
             }
         }
-        Object usuarioId = datos.get("usuarioId");
-        if (usuarioId != null) {
-            try {
-                venta.setUsuarioId(Long.valueOf(usuarioId.toString()));
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        if (venta.getUsuarioId() == null) {
-            venta.setUsuarioId(usuarioActual.id());
-        }
+        // FIX (BOLA): ...pero el vendedor SIEMPRE sale de la sesion, nunca del body
+        venta.setUsuarioId(usuarioActual.id());
         venta.setObservaciones((String) datos.get("observaciones"));
 
         BigDecimal subtotal = BigDecimal.ZERO;
@@ -254,19 +247,47 @@ private final VentaRepositorio ventas;
         movimientos.save(movimiento);
     }
 
+    // FIX (BOLA): el admin ve todas las ventas; el vendedor solo las suyas
     @Transactional(readOnly = true)
     public List<Venta> listar() {
-        return ventas.findAll();
+        if (usuarioActual.esAdmin()) {
+            return ventas.findAll();
+        }
+        Long yo = usuarioActual.id();
+        return yo == null ? List.of() : ventas.findByUsuarioId(yo);
     }
 
-    // VULNERABILIDAD (SQLi + BAC): cualquiera puede consultar cualquier venta por id
+    // FIX (BOLA): lanza AccessDeniedException si la venta no es del usuario actual
+    // (a menos que sea admin). Se traduce a 403 en ManejadorGlobalDeErrores.
+    private void exigirAcceso(Venta venta) {
+        if (usuarioActual.esAdmin()) {
+            return;
+        }
+        Long yo = usuarioActual.id();
+        if (yo == null || !yo.equals(venta.getUsuarioId())) {
+            throw new AccessDeniedException("No puedes acceder a una venta ajena");
+        }
+    }
+
+    // FIX (BOLA): lo usan otros modulos (pagos) que cuelgan de una venta
+    @Transactional(readOnly = true)
+    public void verificarAcceso(Long ventaId) {
+        ventas.findById(ventaId).ifPresent(this::exigirAcceso);
+    }
+
+    // FIX (BOLA): ya no se puede consultar la venta de otro usuario por id
     @Transactional(readOnly = true)
     public Venta obtener(Long id) {
-        return ventas.findById(id).orElse(null);
+        Venta venta = ventas.findById(id).orElse(null);
+        if (venta != null) {
+            exigirAcceso(venta);
+        }
+        return venta;
     }
 
     @Transactional(readOnly = true)
     public List<VentaItem> itemsDe(Long ventaId) {
+        verificarAcceso(ventaId); // FIX (BOLA)
         return items.porVenta(ventaId);
     }
 
@@ -281,7 +302,7 @@ private final VentaRepositorio ventas;
         return ventas.findByClienteId(clienteId);
     }
 
-    // VULNERABILIDAD (BAC): cualquier usuario puede anular una venta ajena
+    // Solo ADMIN: la regla de URL en SecurityConfig exige ROL_ADMIN para /api/ventas/*/anular
     @Transactional
     public Venta anular(Long id, String motivo) {
         Venta venta = ventas.findById(id).orElse(null);
