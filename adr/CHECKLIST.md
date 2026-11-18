@@ -65,10 +65,10 @@ Leyenda: ✅ cumple · ❌ no cumple · 🔧 corregido en este avance · ⏭️ 
 
 | #   | Control                                    | Estado | Hallazgo | OWASP | STRIDE |
 |-----|--------------------------------------------|--------|----------|-------|--------|
-| 6.1 | Cookie `HttpOnly`                          |        |          |       |        |
-| 6.2 | Cookie `Secure`                            |        |          |       |        |
-| 6.3 | `SameSite` adecuado                        |        |          |       |        |
-| 6.4 | Expiración corta y no persistente          |        |          |       |        |
+| 6.1 | Cookie `HttpOnly`                          | 🔧     | SES-01   | A07   | Spoofing, Information disclosure |
+| 6.2 | Cookie `Secure`                            | 🔧     | SES-01   | A07   | Information disclosure |
+| 6.3 | `SameSite` adecuado                        | 🔧     | SES-01   | A07   | Spoofing |
+| 6.4 | Expiración corta y no persistente          | 🔧     | SES-01   | A07   | Spoofing, Elevation of privilege |
 | 6.5 | Nuevo id de sesión tras el login           |        |          |       |        |
 | 6.6 | Logout invalida la sesión                  |        |          |       |        |
 | 6.7 | El id de sesión no se expone en cuerpo/URL |        |          |       |        |
