@@ -1,8 +1,8 @@
 # ADR-0002 · Las contraseñas se almacenan con hash BCrypt
 
 - **Estado:** Aceptado
-- **Fecha:** <fecha de su commit>
-- **Autor(es):** <su nombre>
+- **Fecha:** 11/17/2026
+- **Autor(es):** Lucia Vasquez
 - **Hallazgos relacionados:** CRY-03
 
 ## Contexto

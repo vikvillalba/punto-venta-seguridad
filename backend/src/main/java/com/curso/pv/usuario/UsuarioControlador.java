@@ -14,8 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/usuarios")
-// VULNERABILIDAD (BAC): el controlador no exige rol ADMIN, cualquier usuario
-// autenticado (o incluso anonimo) puede administrar usuarios
+// VULNERABILIDAD (BAC): el controlador no exige rol ADMIN; ese es otro hallazgo (BAC-03)
 public class UsuarioControlador {
 
     private final UsuarioServicio servicio;
@@ -25,29 +24,28 @@ public class UsuarioControlador {
     }
 
     @GetMapping
-    public List<Usuario> listar() {
+    public List<UsuarioDTO> listar() {
         return servicio.listar();
     }
 
     @GetMapping("/buscar")
     public List<?> buscar(@RequestParam String texto) {
-        // VULNERABILIDAD (SQLi): el texto se concatena en la consulta
+        // VULNERABILIDAD (SQLi): fuera del alcance de este fix
         return servicio.buscar(texto);
     }
 
     @GetMapping("/{id}")
-    public Usuario obtener(@PathVariable Long id) {
-        // VULNERABILIDAD: cualquier id es valido, no se comprueba pertenencia
+    public UsuarioDTO obtener(@PathVariable Long id) {
         return servicio.obtener(id);
     }
 
     @PostMapping
-    public Usuario crear(@RequestBody Usuario usuario) {
+    public UsuarioDTO crear(@RequestBody Usuario usuario) {
         return servicio.crear(usuario);
     }
 
     @PutMapping("/{id}")
-    public Usuario actualizar(@PathVariable Long id, @RequestBody Usuario usuario) {
+    public UsuarioDTO actualizar(@PathVariable Long id, @RequestBody Usuario usuario) {
         return servicio.actualizar(id, usuario);
     }
 
@@ -58,7 +56,7 @@ public class UsuarioControlador {
 
     @PostMapping("/{id}/password")
     public void cambiarPassword(@PathVariable Long id, @RequestParam String password) {
-        // VULNERABILIDAD: la contrasena viaja por la URL y queda en los access logs
+        // VULNERABILIDAD: la contrasena viaja por la URL (otro hallazgo, SES/DATA)
         servicio.cambiarPassword(id, password);
     }
 }

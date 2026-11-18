@@ -3,6 +3,7 @@ package com.curso.pv.auth;
 import com.curso.pv.log.ServicioAuditoria;
 import com.curso.pv.usuario.Usuario;
 import com.curso.pv.usuario.UsuarioConsultasInseguras;
+import com.curso.pv.usuario.UsuarioDTO;
 import com.curso.pv.usuario.UsuarioRepositorio;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,7 +31,7 @@ public class AuthServicio {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // VULNERABILIDAD: cualquiera puede registrarse y elegir su propio rol, incluso ADMIN
+    // VULNERABILIDAD (BAC-04): el rol lo sigue decidiendo el cliente; es otro hallazgo
     @Transactional
     public Map<String, Object> registrar(Map<String, String> datos, HttpServletRequest request) {
         Map<String, Object> respuesta = new HashMap<>();
@@ -44,7 +45,7 @@ public class AuthServicio {
             return respuesta;
         }
 
-        // VULNERABILIDAD (SQLi): comprobacion de duplicados concatenando el valor
+        // VULNERABILIDAD (SQLi): fuera del alcance de este fix
         Usuario existente = consultas.porUsername(username);
         if (existente != null) {
             respuesta.put("error", "El usuario ya existe");
@@ -62,11 +63,15 @@ public class AuthServicio {
 
         Usuario guardado = usuarios.save(usuario);
 
+        // CORRECCION DATA-03: se audita sin la contrasena en claro que llego en "datos"
+        Map<String, Object> detalleAuditoria = new HashMap<>(datos);
+        detalleAuditoria.remove("password");
         auditoria.registrar(guardado.getId(), guardado.getUsername(), "REGISTRO", "USUARIO",
-                guardado.getId(), datos, request);
+                guardado.getId(), detalleAuditoria, request);
 
         respuesta.put("mensaje", "Usuario registrado");
-        respuesta.put("usuario", guardado);
+        // CORRECCION DATA-03: se devuelve el DTO, nunca la entidad con el hash
+        respuesta.put("usuario", UsuarioDTO.desde(guardado));
         return respuesta;
     }
 }
