@@ -4,6 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import java.io.InputStream;
+import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,7 +19,28 @@ public class IntegracionServicio {
 
     private static final Logger log = LoggerFactory.getLogger(IntegracionServicio.class);
 
-    private final RestTemplate cliente = new RestTemplate();
+    // SSRF-04: limites del cliente HTTP
+    private static final int MAX_BYTES = 100_000;
+
+    private final RestTemplate cliente = crearCliente();
+
+    private static RestTemplate crearCliente() {
+        HttpClient http = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .connectTimeout(Duration.ofSeconds(2))
+                .build();
+        JdkClientHttpRequestFactory fabrica = new JdkClientHttpRequestFactory(http);
+        fabrica.setReadTimeout(Duration.ofSeconds(3));
+        return new RestTemplate(fabrica);
+    }
+
+    private String get(String url) {
+        return cliente.execute(url, HttpMethod.GET, null, resp -> {
+            try (InputStream in = resp.getBody()) {
+                return new String(in.readNBytes(MAX_BYTES), StandardCharsets.UTF_8);
+            }
+        });
+    }
 
     /**
      * VULNERABILIDAD (SSRF): el backend realiza la peticion a una URL que elige
@@ -30,7 +57,7 @@ public class IntegracionServicio {
         log.info("Consultando URL externa solicitada por el cliente: {}", url);
 
         try {
-            String cuerpo = cliente.getForObject(url, String.class);
+            String cuerpo = get(url);
 
             respuesta.put("url", url);
             respuesta.put("estado", "OK");
@@ -79,7 +106,7 @@ public class IntegracionServicio {
         String url = "http://" + host + ":" + puerto + "/";
 
         try {
-            cliente.getForObject(url, String.class);
+            get(url);
             respuesta.put("host", host);
             respuesta.put("puerto", puerto);
             respuesta.put("abierto", true);
