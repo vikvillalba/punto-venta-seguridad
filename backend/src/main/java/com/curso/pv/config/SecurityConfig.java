@@ -46,6 +46,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/salud", "/actuator/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
+                //         .requestMatchers("/api/**").permitAll()
+//                        .requestMatchers("/**").permitAll()
+//                        .anyRequest().permitAll())
 
                 // Sin sesion -> 401 (en vez del reto de HTTP Basic)
                 .exceptionHandling(errores -> errores
