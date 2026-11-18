@@ -5,14 +5,16 @@ server:
     include-message: always
     include-exception: true
   servlet:
+    # CORRECCION SES-01 (ADR-0005): cookie de sesion protegida y de vida corta.
     session:
       cookie:
         name: PVSESSION
-        http-only: false
-        secure: false
-        same-site: lax
-      timeout: 30d
-      persistent: true
+        http-only: true    # antes false
+        secure: true       # antes false
+        same-site: strict  # antes lax
+        # sin max-age: cookie de sesion del navegador, se borra al cerrarlo
+      timeout: 15m         # antes 30d
+      persistent: false    # antes true
   tomcat:
     max-http-form-post-size: 50MB
 
