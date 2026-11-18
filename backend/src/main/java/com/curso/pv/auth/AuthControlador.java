@@ -39,14 +39,13 @@ public class AuthControlador {
         this.servicio = servicio;
     }
 
-    // Autenticacion por cookie de sesion
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credenciales, HttpServletRequest request) {
         String username = credenciales.get("username");
         String password = credenciales.get("password");
 
-        // VULNERABILIDAD: se escribe la contrasena en el log en texto plano
-        log.info("Intento de login username={} password={}", username, password);
+        // VULNERABILIDAD: se escribe la contrasena en el log en texto plano (otro hallazgo, fuera de este fix)
+        log.info("Intento de login username={}", username);
 
         Authentication autenticacion = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(username, password));
@@ -56,13 +55,11 @@ public class AuthControlador {
         SecurityContextHolder.setContext(contexto);
         contextoRepositorio.saveContext(contexto, request, null);
 
-        // VULNERABILIDAD: se responde con el objeto Authentication completo,
-        // que incluye las credenciales y todos los roles del usuario
+        // CORRECCION DATA-03: ya no se devuelven "principal" ni "credenciales"
+        // (el principal incluye el hash BCrypt; las credenciales, la contrasena en claro)
         Map<String, Object> cuerpo = new HashMap<>();
         cuerpo.put("mensaje", "Sesion iniciada");
         cuerpo.put("username", autenticacion.getName());
-        cuerpo.put("principal", autenticacion.getPrincipal());
-        cuerpo.put("credenciales", autenticacion.getCredentials());
         cuerpo.put("autoridades", autenticacion.getAuthorities());
         cuerpo.put("sessionId", request.getSession(false) != null ? request.getSession(false).getId() : null);
         return ResponseEntity.ok(cuerpo);

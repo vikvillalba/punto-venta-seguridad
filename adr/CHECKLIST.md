@@ -42,8 +42,8 @@ Leyenda: ✅ cumple · ❌ no cumple · 🔧 corregido en este avance · ⏭️ 
 
 | #   | Control                                                      | Estado | Hallazgo | OWASP | STRIDE |
 |-----|--------------------------------------------------------------|--------|----------|-------|--------|
-| 4.1 | La API devuelve DTOs, no entidades completas                 |        |          |       |        |
-| 4.2 | Contraseñas nunca salen de la API                            |        |          |       |        |
+| 4.1 | La API devuelve DTOs, no entidades completas                 | 🔧     | DATA-03  | A01   | Information disclosure |
+| 4.2 | Contraseñas nunca salen de la API                            | 🔧     | DATA-03  | A02   | Information disclosure, Spoofing |
 | 4.3 | PAN enmascarado, CVV nunca devuelto                          |        |          |       |        |
 | 4.4 | Sin endpoints de configuración/diagnóstico públicos          |        |          |       |        |
 | 4.5 | Actuator restringido                                         |        |          |       |        |
@@ -54,13 +54,13 @@ Leyenda: ✅ cumple · ❌ no cumple · 🔧 corregido en este avance · ⏭️ 
 
 | #   | Control                                        | Estado | Hallazgo | OWASP | STRIDE |
 |-----|------------------------------------------------|--------|----------|-------|--------|
-| 5.1 | Contraseñas con hash adaptativo y sal          |        |          |       |        |
+| 5.1 | Contraseñas con hash adaptativo y sal          | 🔧     | CRY-03   | A02   | Information disclosure, Spoofing |
 | 5.2 | CVV nunca almacenado                           |        |          |       |        |
 | 5.3 | PAN cifrado o tokenizado                       |        |          |       |        |
 | 5.4 | Sin secretos en el repositorio                 |        |          |       |        |
 | 5.5 | Codificación (base64) no usada como protección |        |          |       |        |
 | 5.6 | TLS hacia la BD y HTTPS                        |        |          |       |        |
-| 5.1 | Contraseñas con hash adaptativo y sal          | 🔧     | CRY-03   | A02   | Information disclosure, Spoofing |
+
 ## 6. Gestión de sesiones
 
 | #   | Control                                    | Estado | Hallazgo | OWASP | STRIDE |

@@ -2,9 +2,9 @@ package com.curso.pv.usuario;
 
 import com.curso.pv.security.UsuarioActual;
 import com.curso.pv.log.ServicioAuditoria;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.HashMap;
 import java.util.List;
@@ -32,13 +32,14 @@ public class UsuarioServicio {
     }
 
     @Transactional(readOnly = true)
-    public List<Usuario> listar() {
-        return repositorio.findAll();
+    public List<UsuarioDTO> listar() {
+        // CORRECCION DATA-03: se mapea a DTO antes de salir del servicio
+        return repositorio.findAll().stream().map(UsuarioDTO::desde).toList();
     }
 
     @Transactional(readOnly = true)
     public List<?> buscar(String texto) {
-        // VULNERABILIDAD (SQLi)
+        // VULNERABILIDAD (SQLi): fuera del alcance de este fix
         return consultas.buscar(texto);
     }
 
@@ -47,25 +48,26 @@ public class UsuarioServicio {
         return consultas.porRol(rol);
     }
 
-    // VULNERABILIDAD: devuelve la entidad completa, incluida la contrasena en claro
     @Transactional(readOnly = true)
-    public Usuario obtener(Long id) {
-        return repositorio.findById(id).orElse(null);
+    public UsuarioDTO obtener(Long id) {
+        // CORRECCION DATA-03: ya no se devuelve la entidad con la contrasena
+        return UsuarioDTO.desde(repositorio.findById(id).orElse(null));
     }
 
     @Transactional
-    public Usuario crear(Usuario usuario) {
+    public UsuarioDTO crear(Usuario usuario) {
         // CORRECCION CRY-03: se hashea antes de guardar
         usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
         Usuario guardado = repositorio.save(usuario);
-        // VULNERABILIDAD: la auditoria guarda la contrasena en claro
+
+        // CORRECCION DATA-03: la auditoria ya no recibe la contrasena, ni siquiera hasheada
         auditoria.registrar(usuarioActual.id(), usuarioActual.username(), "CREAR", "USUARIO",
-                guardado.getId(), usuario);
-        return guardado;
+                guardado.getId(), detalleSinPassword(guardado));
+        return UsuarioDTO.desde(guardado);
     }
 
     @Transactional
-    public Usuario actualizar(Long id, Usuario datos) {
+    public UsuarioDTO actualizar(Long id, Usuario datos) {
         Usuario existente = repositorio.findById(id).orElse(null);
         if (existente == null) {
             return null;
@@ -76,21 +78,21 @@ public class UsuarioServicio {
         if (datos.getPassword() != null && !datos.getPassword().isBlank()) {
             existente.setPassword(passwordEncoder.encode(datos.getPassword()));
         }
-
         existente.setNombre(datos.getNombre());
         existente.setEmail(datos.getEmail());
-        // VULNERABILIDAD (BAC): cualquiera puede cambiar el rol de otro usuario
-        // sin comprobar que sea administrador ni que el id le pertenezca
+        // VULNERABILIDAD (BAC-03): sigue sin validar quien puede cambiar el rol; es otro hallazgo
         existente.setRol(datos.getRol());
         existente.setActivo(datos.getActivo());
         Usuario guardado = repositorio.save(existente);
-        auditoria.registrar(usuarioActual.id(), usuarioActual.username(), "ACTUALIZAR", "USUARIO", id, datos);
-        return guardado;
+
+        auditoria.registrar(usuarioActual.id(), usuarioActual.username(), "ACTUALIZAR", "USUARIO",
+                id, detalleSinPassword(guardado));
+        return UsuarioDTO.desde(guardado);
     }
 
     @Transactional
     public void eliminar(Long id) {
-        // VULNERABILIDAD: no se valida que exista ni que el usuario tenga permisos
+        // VULNERABILIDAD: no se valida que exista ni que el usuario tenga permisos (BAC, otro hallazgo)
         repositorio.deleteById(id);
         auditoria.registrar(usuarioActual.id(), usuarioActual.username(), "ELIMINAR", "USUARIO", id, Map.of("id", id));
     }
@@ -105,10 +107,19 @@ public class UsuarioServicio {
         usuario.setPassword(passwordEncoder.encode(nuevaPassword));
         repositorio.save(usuario);
 
-        // VULNERABILIDAD: la nueva contrasena queda escrita en el log y en la tabla de auditoria
+        // CORRECCION DATA-03: ya no se escribe la contrasena (ni en claro ni hasheada) en la auditoria
+        auditoria.registrar(usuarioActual.id(), usuarioActual.username(), "CAMBIAR_PASSWORD", "USUARIO",
+                id, Map.of("id", id));
+    }
+
+    private Map<String, Object> detalleSinPassword(Usuario usuario) {
         Map<String, Object> detalle = new HashMap<>();
-        detalle.put("id", id);
-        detalle.put("password", nuevaPassword);
-        auditoria.registrar(usuarioActual.id(), usuarioActual.username(), "CAMBIAR_PASSWORD", "USUARIO", id, detalle);
+        detalle.put("id", usuario.getId());
+        detalle.put("username", usuario.getUsername());
+        detalle.put("nombre", usuario.getNombre());
+        detalle.put("email", usuario.getEmail());
+        detalle.put("rol", usuario.getRol());
+        detalle.put("activo", usuario.getActivo());
+        return detalle;
     }
 }
