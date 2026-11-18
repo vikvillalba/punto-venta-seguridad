@@ -1,8 +1,8 @@
 # ADR-0003 · La API nunca devuelve el campo password
 
 - **Estado:** Aceptado
-- **Fecha:** <fecha de su commit>
-- **Autor(es):** <su nombre>
+- **Fecha:** 11/17/2026
+- **Autor(es):** Lucia Vasquez
 - **Hallazgos relacionados:** DATA-03
 
 ## Contexto
